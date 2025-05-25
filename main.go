@@ -355,6 +355,15 @@ func (s *StreamingServer) processAudioFile(inputPath, trackID, title, artist str
 		return fmt.Errorf("ffmpeg failed: %v - %s", err, output)
 	}
 
+	
+    // ✅ Generate master playlist after FFmpeg succeeds
+    masterPlaylistPath := filepath.Join(trackDir, "playlist.m3u8")
+    masterPlaylistContent := s.generateMasterPlaylist(trackID)
+    
+    if err := os.WriteFile(masterPlaylistPath, []byte(masterPlaylistContent), 0644); err != nil {
+        return fmt.Errorf("failed to write master playlist: %v", err)
+    }
+
 	// Add track to memory
 	s.mu.Lock()
 	s.tracks[trackID] = &AudioTrack{
