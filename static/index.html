@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Audio Streaming Platform</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🎵 Audio Streaming Platform</h1>
+        
+        <div class="upload-section">
+            <input type="file" id="audioUpload" accept="audio/*">
+            <button onclick="uploadAudio()">Upload Audio</button>
+        </div>
+
+        <div class="tracks-section">
+            <h2>Available Tracks</h2>
+            <div id="tracksList"></div>
+        </div>
+
+        <div class="player-section">
+            <audio id="audioPlayer" controls></audio>
+            <div id="currentTrack"></div>
+        </div>
+    </div>
+
+    <script src="player.js"></script>
+</body>
+</html>
