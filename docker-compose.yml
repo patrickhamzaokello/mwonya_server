@@ -28,17 +28,5 @@ services:
       - redis_data:/data
     restart: unless-stopped
 
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx:/etc/nginx:ro
-      - ./audio:/var/www/audio:ro
-    depends_on:
-      - audio-streaming
-    restart: unless-stopped
-
 volumes:
   redis_data:
