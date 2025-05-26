@@ -93,16 +93,16 @@ func (s *StreamingServer) getTrackDurationFromPlaylist(trackID string) int {
 }
 
 func (s *StreamingServer) generateMasterPlaylist(trackID string) string {
-	return fmt.Sprintf(`#EXTM3U
+    return fmt.Sprintf(`#EXTM3U
 #EXT-X-VERSION:3
 
-#EXT-X-STREAM-INF:BANDWIDTH=40000,CODECS="opus"
+#EXT-X-STREAM-INF:BANDWIDTH=40000,CODECS="mp4a.40.2"
 %s/low/playlist.m3u8
 
-#EXT-X-STREAM-INF:BANDWIDTH=80000,CODECS="opus"
+#EXT-X-STREAM-INF:BANDWIDTH=80000,CODECS="mp4a.40.2"
 %s/med/playlist.m3u8
 
-#EXT-X-STREAM-INF:BANDWIDTH=120000,CODECS="opus"
+#EXT-X-STREAM-INF:BANDWIDTH=120000,CODECS="mp4a.40.2"
 %s/high/playlist.m3u8
 `, trackID, trackID, trackID)
 }
@@ -235,7 +235,7 @@ func (s *StreamingServer) handleSegment(w http.ResponseWriter, r *http.Request) 
 	}
 	s.mu.Unlock()
 
-	w.Header().Set("Content-Type", "audio/webm")
+	w.Header().Set("Content-Type", "video/MP2T")  // Changed from audio/webm
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Cache-Control", "max-age=86400")
 	w.Header().Set("Accept-Ranges", "bytes")
@@ -327,72 +327,70 @@ func (s *StreamingServer) handleUpload(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *StreamingServer) processAudioFile(inputPath, trackID, title, artist string) error {
-	trackDir := filepath.Join(s.audioDir, trackID)
-	os.MkdirAll(filepath.Join(trackDir, "low"), 0755)
-	os.MkdirAll(filepath.Join(trackDir, "med"), 0755)
-	os.MkdirAll(filepath.Join(trackDir, "high"), 0755)
+    trackDir := filepath.Join(s.audioDir, trackID)
+    os.MkdirAll(filepath.Join(trackDir, "low"), 0755)
+    os.MkdirAll(filepath.Join(trackDir, "med"), 0755)
+    os.MkdirAll(filepath.Join(trackDir, "high"), 0755)
 
-	log.Printf("🎵 Processing audio: %s", inputPath)
+    log.Printf("🎵 Processing audio: %s", inputPath)
 
-	duration, err := s.getAudioDuration(inputPath)
-	if err != nil {
-		return fmt.Errorf("failed to get duration: %v", err)
-	}
+    duration, err := s.getAudioDuration(inputPath)
+    if err != nil {
+        return fmt.Errorf("failed to get duration: %v", err)
+    }
 
-	// Process each quality separately for better compatibility
-	qualities := []struct {
-		name    string
-		bitrate string
-	}{
-		{"low", "32k"},
-		{"med", "64k"},
-		{"high", "96k"},
-	}
+    // Process each quality
+    qualities := []struct {
+        name    string
+        bitrate string
+    }{
+        {"low", "48k"},
+        {"med", "96k"},
+        {"high", "192k"},
+    }
 
-	for _, q := range qualities {
-		outputDir := filepath.Join(trackDir, q.name)
-		playlistPath := filepath.Join(outputDir, "playlist.m3u8")
-		segmentPath := filepath.Join(outputDir, "segment_%03d.webm")
+    for _, q := range qualities {
+        outputDir := filepath.Join(trackDir, q.name)
+        playlistPath := filepath.Join(outputDir, "playlist.m3u8")
 
-		cmd := exec.Command("ffmpeg", "-i", inputPath,
-			"-c:a", "libopus",
-			"-b:a", q.bitrate,
-			"-f", "segment",
-			"-segment_time", "10",
-			"-segment_list", playlistPath,
-			"-segment_format", "webm",
-			"-y", // Overwrite existing files
-			segmentPath,
-		)
+        cmd := exec.Command("ffmpeg", "-i", inputPath,
+            "-c:a", "aac",
+            "-b:a", q.bitrate,
+            "-f", "hls",
+            "-hls_time", "10",
+            "-hls_list_size", "0",
+            "-hls_segment_filename", filepath.Join(outputDir, "segment_%03d.ts"),
+            "-hls_playlist_type", "vod",
+            "-y",
+            playlistPath,
+        )
 
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			return fmt.Errorf("ffmpeg failed for %s quality: %v - %s", q.name, err, output)
-		}
+        output, err := cmd.CombinedOutput()
+        if err != nil {
+            return fmt.Errorf("ffmpeg failed for %s quality: %v - %s", q.name, err, output)
+        }
 
-		log.Printf("✅ Generated %s quality segments", q.name)
-	}
+        log.Printf("✅ Generated %s quality segments", q.name)
+    }
 
-	// Generate master playlist
-	masterPlaylistPath := filepath.Join(trackDir, "playlist.m3u8")
-	masterPlaylistContent := s.generateMasterPlaylist(trackID)
+    // Generate master playlist
+    masterPlaylistPath := filepath.Join(trackDir, "playlist.m3u8")
+    masterPlaylistContent := s.generateMasterPlaylist(trackID)
+    if err := os.WriteFile(masterPlaylistPath, []byte(masterPlaylistContent), 0644); err != nil {
+        return fmt.Errorf("failed to write master playlist: %v", err)
+    }
 
-	if err := os.WriteFile(masterPlaylistPath, []byte(masterPlaylistContent), 0644); err != nil {
-		return fmt.Errorf("failed to write master playlist: %v", err)
-	}
+    // Add track to memory
+    s.mu.Lock()
+    s.tracks[trackID] = &AudioTrack{
+        ID:       trackID,
+        Title:    title,
+        Artist:   artist,
+        Duration: duration,
+    }
+    s.mu.Unlock()
 
-	// Add track to memory
-	s.mu.Lock()
-	s.tracks[trackID] = &AudioTrack{
-		ID:       trackID,
-		Title:    title,
-		Artist:   artist,
-		Duration: duration,
-	}
-	s.mu.Unlock()
-
-	log.Printf("✅ Audio processing complete: %s (%d seconds)", trackID, duration)
-	return nil
+    return nil
 }
 
 func (s *StreamingServer) getAudioDuration(inputPath string) (int, error) {
@@ -466,13 +464,10 @@ func main() {
 
 		switch {
 		case strings.HasSuffix(path, "/playlist.m3u8") && strings.Count(path, "/") == 3:
-			// Master playlist: /stream/trackID/playlist.m3u8
 			server.handleMasterPlaylist(w, r)
 		case strings.HasSuffix(path, "/playlist.m3u8"):
-			// Quality playlist: /stream/trackID/quality/playlist.m3u8
 			server.handleQualityPlaylist(w, r)
-		case strings.HasSuffix(path, ".webm"):
-			// Audio segment: /stream/trackID/quality/segment_001.webm
+		case strings.HasSuffix(path, ".ts"):  // Changed from .webm
 			server.handleSegment(w, r)
 		default:
 			http.Error(w, "Invalid stream path", http.StatusBadRequest)
