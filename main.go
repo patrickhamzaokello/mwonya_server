@@ -93,6 +93,7 @@ func (s *StreamingServer) getTrackDurationFromPlaylist(trackID string) int {
 }
 
 func (s *StreamingServer) generateMasterPlaylist(trackID string) string {
+	basePath := fmt.Sprintf("/stream/%s", trackID)
     return fmt.Sprintf(`#EXTM3U
 #EXT-X-VERSION:3
 
@@ -104,7 +105,7 @@ func (s *StreamingServer) generateMasterPlaylist(trackID string) string {
 
 #EXT-X-STREAM-INF:BANDWIDTH=120000,CODECS="mp4a.40.2"
 %s/high/playlist.m3u8
-`, trackID, trackID, trackID)
+`, basePath, basePath, basePath)
 }
 
 func (s *StreamingServer) handleMasterPlaylist(w http.ResponseWriter, r *http.Request) {
