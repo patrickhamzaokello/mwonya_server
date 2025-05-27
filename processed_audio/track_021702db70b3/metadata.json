@@ -1,0 +1,20 @@
+{
+  "id": "track_021702db70b3",
+  "title": "Koyo_Tee_Bwoy(Official Audio)",
+  "artist": "Tee Bwoy",
+  "album": "BROZYBEATZ ",
+  "duration": 207,
+  "original_file": "uploads\\Koyo_Tee_Bwoy(Official Audio).mp3",
+  "processed_at": "2025-05-27T20:30:08.144099",
+  "qualities": [
+    "low",
+    "med",
+    "high"
+  ],
+  "original_info": {
+    "bitrate": 262385,
+    "sample_rate": 44100,
+    "channels": 2,
+    "codec": "mp3"
+  }
+}

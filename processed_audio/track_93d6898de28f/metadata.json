@@ -1,0 +1,20 @@
+{
+  "id": "track_93d6898de28f",
+  "title": "Mama-Realmids",
+  "artist": "Unknown Artist",
+  "album": "",
+  "duration": 227,
+  "original_file": "uploads\\Mama-Realmids.mp3",
+  "processed_at": "2025-05-27T20:21:05.527087",
+  "qualities": [
+    "low",
+    "med",
+    "high"
+  ],
+  "original_info": {
+    "bitrate": 280959,
+    "sample_rate": 48000,
+    "channels": 2,
+    "codec": "mp3"
+  }
+}

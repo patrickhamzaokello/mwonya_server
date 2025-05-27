@@ -1,0 +1,20 @@
+{
+  "id": "track_383c557b7b2e",
+  "title": "Hello_ BeePee Ft TeeBoy(Official Audio)",
+  "artist": "Unknown Artist",
+  "album": "",
+  "duration": 169,
+  "original_file": "uploads\\Hello_ BeePee Ft TeeBoy(Official Audio).mp3",
+  "processed_at": "2025-05-27T20:30:59.346534",
+  "qualities": [
+    "low",
+    "med",
+    "high"
+  ],
+  "original_info": {
+    "bitrate": 320888,
+    "sample_rate": 44100,
+    "channels": 2,
+    "codec": "mp3"
+  }
+}

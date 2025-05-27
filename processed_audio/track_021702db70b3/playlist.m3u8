@@ -1,0 +1,12 @@
+#EXTM3U
+#EXT-X-VERSION:3
+
+#EXT-X-STREAM-INF:BANDWIDTH=80000,CODECS="mp4a.40.2"
+/stream/track_021702db70b3/low/playlist.m3u8
+
+#EXT-X-STREAM-INF:BANDWIDTH=160000,CODECS="mp4a.40.2"
+/stream/track_021702db70b3/med/playlist.m3u8
+
+#EXT-X-STREAM-INF:BANDWIDTH=384000,CODECS="mp4a.40.2"
+/stream/track_021702db70b3/high/playlist.m3u8
+

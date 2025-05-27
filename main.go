@@ -210,7 +210,7 @@ func (s *StreamingServer) handleSegment(w http.ResponseWriter, r *http.Request) 
 	if cachedData, exists := s.segmentCache[cacheKey]; exists {
 		s.mu.RUnlock()
 		
-		w.Header().Set("Content-Type", "audio/webm")
+		w.Header().Set("Content-Type", "video/MP2T")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Cache-Control", "max-age=86400")
 		w.Header().Set("Accept-Ranges", "bytes")
@@ -433,7 +433,7 @@ func (s *StreamingServer) handleCORS(w http.ResponseWriter, r *http.Request) {
 func main() {
 	audioDir := os.Getenv("AUDIO_DIR")
 	if audioDir == "" {
-		audioDir = "./audio"
+		audioDir = "./processed_audio"
 	}
 
 	uploadDir := os.Getenv("UPLOAD_DIR")
