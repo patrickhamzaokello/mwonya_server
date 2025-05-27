@@ -278,12 +278,74 @@ class AudioProcessor:
         
         logger.info(f"💾 Saved metadata for {track_id}")
     
-    def process_single_file(self, input_path: Path) -> Optional[str]:
+    def is_already_processed(self, input_path: Path, track_id: str) -> bool:
+        """
+        Check if a file has already been processed
+        
+        Args:
+            input_path: Path to the input audio file
+            track_id: Generated track ID
+            
+        Returns:
+            True if already processed, False otherwise
+        """
+        track_dir = self.output_dir / track_id
+        metadata_file = track_dir / 'metadata.json'
+        master_playlist = track_dir / 'playlist.m3u8'
+        
+        # Check if all required files exist
+        if not (metadata_file.exists() and master_playlist.exists()):
+            return False
+        
+        try:
+            # Load existing metadata
+            with open(metadata_file, 'r', encoding='utf-8') as f:
+                existing_metadata = json.load(f)
+            
+            # Check if original file path matches
+            original_file = existing_metadata.get('original_file')
+            if original_file != str(input_path):
+                return False
+            
+            # Check if all quality directories exist with playlists
+            for quality in self.QUALITY_CONFIGS.keys():
+                quality_dir = track_dir / quality
+                quality_playlist = quality_dir / 'playlist.m3u8'
+                if not quality_playlist.exists():
+                    logger.info(f"🔄 Missing {quality} quality for {track_id}, will reprocess")
+                    return False
+            
+            # Check file modification time
+            input_mtime = input_path.stat().st_mtime
+            processed_at = existing_metadata.get('processed_at', '')
+            
+            try:
+                # Parse ISO format datetime
+                processed_time = datetime.fromisoformat(processed_at.replace('Z', '+00:00'))
+                processed_timestamp = processed_time.timestamp()
+                
+                # If input file is newer than processed time, reprocess
+                if input_mtime > processed_timestamp:
+                    logger.info(f"🔄 Input file is newer than processed version for {track_id}")
+                    return False
+                    
+            except (ValueError, AttributeError):
+                # If we can't parse the processed time, assume we need to reprocess
+                return False
+            
+            return True
+            
+        except (json.JSONDecodeError, FileNotFoundError, KeyError) as e:
+            logger.debug(f"Error checking processed status for {track_id}: {e}")
+            return False
+
+    def process_single_file(self, input_path: Path, force: bool = False) -> Optional[str]:
         """
         Process a single audio file into HLS format
         
         Args:
             input_path: Path to the audio file
+            force: If True, reprocess even if already exists
             
         Returns:
             Track ID if successful, None otherwise
@@ -292,12 +354,17 @@ class AudioProcessor:
             logger.warning(f"⚠️  Unsupported format: {input_path}")
             return None
         
-        logger.info(f"🎵 Processing: {input_path}")
-        
         try:
             # Get audio information
             metadata = self.get_audio_info(input_path)
             track_id = self.generate_track_id(input_path, metadata)
+            
+            # Check if already processed (unless forced)
+            if not force and self.is_already_processed(input_path, track_id):
+                logger.info(f"⏭️  Already processed: {metadata['title']} ({track_id})")
+                return track_id
+            
+            logger.info(f"🎵 Processing: {input_path}")
             
             # Create track directory
             track_dir = self.output_dir / track_id
@@ -331,13 +398,14 @@ class AudioProcessor:
             logger.error(f"❌ Error processing {input_path}: {e}")
             return None
     
-    def process_directory(self, input_dir: Path, max_workers: int = 4) -> List[str]:
+    def process_directory(self, input_dir: Path, max_workers: int = 4, force: bool = False) -> List[str]:
         """
         Process all audio files in a directory
         
         Args:
             input_dir: Directory containing audio files
             max_workers: Maximum number of concurrent workers
+            force: If True, reprocess even if files already exist
             
         Returns:
             List of successfully processed track IDs
@@ -359,9 +427,11 @@ class AudioProcessor:
         
         # Process files concurrently
         processed_tracks = []
+        skipped_count = 0
+        
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_file = {
-                executor.submit(self.process_single_file, file_path): file_path
+                executor.submit(self.process_single_file, file_path, force): file_path
                 for file_path in audio_files
             }
             
@@ -371,8 +441,20 @@ class AudioProcessor:
                     track_id = future.result()
                     if track_id:
                         processed_tracks.append(track_id)
+                        # Check if it was actually processed or skipped
+                        if not force:
+                            metadata = self.get_audio_info(file_path)
+                            generated_id = self.generate_track_id(file_path, metadata)
+                            if self.is_already_processed(file_path, generated_id):
+                                skipped_count += 1
                 except Exception as e:
                     logger.error(f"❌ Error processing {file_path}: {e}")
+        
+        processed_count = len(processed_tracks) - skipped_count
+        if skipped_count > 0:
+            logger.info(f"⏭️  Skipped {skipped_count} already processed files")
+        if processed_count > 0:
+            logger.info(f"✨ Newly processed {processed_count} files")
         
         return processed_tracks
     
@@ -414,6 +496,7 @@ def main():
 Examples:
   %(prog)s -f song.mp3                    # Process single file
   %(prog)s -d /path/to/music              # Process directory
+  %(prog)s -d /path/to/music --force      # Force reprocess all files
   %(prog)s -d /music -o /processed -w 8   # Process with 8 workers
   %(prog)s -f song.mp3 --segment-duration 6  # Use 6-second segments
         """
@@ -431,6 +514,8 @@ Examples:
                        help='HLS segment duration in seconds (default: 10)')
     parser.add_argument('--generate-index', action='store_true',
                        help='Generate library index after processing')
+    parser.add_argument('--force', action='store_true',
+                       help='Force reprocessing of already processed files')
     parser.add_argument('-v', '--verbose', action='store_true',
                        help='Enable verbose logging')
     
@@ -453,12 +538,12 @@ Examples:
         
         # Process single file or directory
         if args.file:
-            track_id = processor.process_single_file(args.file)
+            track_id = processor.process_single_file(args.file, force=args.force)
             if track_id:
                 processed_tracks.append(track_id)
         
         if args.directory:
-            tracks = processor.process_directory(args.directory, args.workers)
+            tracks = processor.process_directory(args.directory, args.workers, force=args.force)
             processed_tracks.extend(tracks)
         
         # Generate library index if requested
