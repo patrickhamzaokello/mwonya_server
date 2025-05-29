@@ -310,22 +310,9 @@ class S3AudioProcessor:
             }
 
     def generate_track_id(self, s3_key: str, metadata: Dict) -> str:
-        """
-        Generate a unique track ID based on S3 key and metadata
-
-        Args:
-            s3_key: S3 object key
-            metadata: Audio metadata
-
-        Returns:
-            Unique track ID
-        """
-        hasher = hashlib.md5()
-        hasher.update(s3_key.encode())
-        hasher.update(metadata['title'].encode())
-        hasher.update(metadata['artist'].encode())
-
-        return f"track_{hasher.hexdigest()[:12]}"
+      base_name = os.path.splitext(os.path.basename(s3_key))[0]
+      short_hash = hashlib.md5(base_name.encode()).hexdigest()[:12]
+      return f"track_{short_hash}"
 
     def process_quality(self, input_path: Path, output_dir: Path,
                        quality: str, config: Dict) -> bool:
