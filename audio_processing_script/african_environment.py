@@ -25,24 +25,32 @@ class S3AudioProcessor:
             'sample_rate': '16000',
             'channels': '1',  # Mono for ultra low bandwidth
             'description': 'Ultra low quality for very slow connections (speech/podcasts)',
-            'codec': 'libopus',
-            'codec_options': ['-application', 'audio', '-vbr', 'off']  # Disable VBR for consistent bitrate
+            'codec': 'aac',
+            'codec_options': ['-profile:a', 'aac_low']  # AAC-LC profile for compatibility
         },
         'low': {
             'bitrate': '48k',
             'sample_rate': '24000',
-            'channels': '2',
+            'channels': '2',  # Stereo for better music quality
             'description': 'Default quality for music in low-bandwidth environments',
-            'codec': 'libopus',
-            'codec_options': ['-application', 'audio', '-vbr', 'on', '-compression_level', '10']
+            'codec': 'aac',
+            'codec_options': ['-profile:a', 'aac_low']
         },
         'med': {
             'bitrate': '64k',
             'sample_rate': '32000',
             'channels': '2',
             'description': 'Improved quality for users on stronger connections',
-            'codec': 'libopus',
-            'codec_options': ['-application', 'audio', '-vbr', 'on', '-compression_level', '10']
+            'codec': 'aac',
+            'codec_options': ['-profile:a', 'aac_low']
+        },
+        'high': {
+            'bitrate': '128k',
+            'sample_rate': '44100',
+            'channels': '2',
+            'description': 'High quality audio for good network conditions',
+            'codec': 'aac',
+            'codec_options': ['-profile:a', 'aac_low']
         }
     }
 
@@ -353,7 +361,7 @@ class S3AudioProcessor:
                 '-f', 'hls',
                 '-hls_time', str(self.segment_duration),
                 '-hls_list_size', '0',
-                '-hls_segment_filename', str(output_dir / 'segment_%03d.opus'),
+                '-hls_segment_filename', str(output_dir / 'segment_%03d.ts'),  # <-- Changed from .opus to .ts
                 '-hls_playlist_type', 'vod',
                 '-hls_flags', 'independent_segments',
                 '-y',
