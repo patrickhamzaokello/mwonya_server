@@ -126,10 +126,6 @@ class S3AudioProcessor:
                                      stderr=subprocess.PIPE,
                                      text=True,
                                      check=True)
-                
-                # Verify Opus codec is available
-                if tool == 'ffmpeg' and '--enable-libopus' not in result.stderr:
-                    raise RuntimeError("ffmpeg not compiled with Opus support")
                     
             except (subprocess.CalledProcessError, FileNotFoundError):
                 raise RuntimeError(f"{tool} is not installed or not in PATH")
@@ -403,21 +399,26 @@ class S3AudioProcessor:
 
         playlist_content = "#EXTM3U\n#EXT-X-VERSION:3\n\n"
 
-        # Add each quality level with appropriate bandwidth values
+        # Updated bandwidth map (bitrate + overhead approx)
         bandwidth_map = {
-            'ultra_low': 32000,    # 24k + overhead
-            'low': 64000,           # 48k + overhead
-            'med': 96000            # 64k + overhead
+            'ultra_low': 32000,  # 24k + overhead
+            'low': 64000,        # 48k + overhead
+            'med': 96000,        # 64k + overhead
+            'high': 160000       # 128k + overhead
         }
 
-        for quality in ['ultra_low', 'low', 'med']:
+        for quality in ['ultra_low', 'low', 'med', 'high']:
             config = self.QUALITY_CONFIGS[quality]
             bandwidth = bandwidth_map[quality]
+            
+            # AAC LC codec string for HLS
+            codec_str = "mp4a.40.2"
 
-            playlist_content += f'#EXT-X-STREAM-INF:BANDWIDTH={bandwidth},CODECS="opus"\n'
+            playlist_content += f'#EXT-X-STREAM-INF:BANDWIDTH={bandwidth},CODECS="{codec_str}"\n'
             playlist_content += f'{base_path}/{quality}/playlist.m3u8\n\n'
 
         return playlist_content
+
 
     def process_single_file(self, s3_key: str, force: bool = False) -> Optional[str]:
         """
