@@ -13,8 +13,9 @@ metadata = MetaData(bind=engine)
 tracks_table = Table('tracks', metadata, autoload_with=engine)
 
 def generate_track_id(s3_key: str) -> str:
-    short_hash = hashlib.md5(s3_key.encode()).hexdigest()[:10]
-    return f"track_{short_hash}"
+  base_name = os.path.splitext(os.path.basename(s3_key))[0]
+  short_hash = hashlib.md5(base_name.encode()).hexdigest()[:12]
+  return f"track_{short_hash}"
 
 # Step 1: Fetch all rows missing track_id
 select_query = select(tracks_table).where(tracks_table.c.track_id == None)
